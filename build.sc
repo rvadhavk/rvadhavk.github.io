@@ -18,7 +18,7 @@ def getFirstParagraph(root: Node): Option[Paragraph] = {
 
 def getGitAddTime(path: os.Path): Option[Instant] = {
   val gitLogCommand = s"git log --diff-filter=A --follow --format=%at -1 -- $path".split(" ").map[os.Shellable](identity)
-  os.proc("git", "log", "--diff-filter=A", "--follow", "--format=%at", "-1", "--", path).call(check=false).out.trim.toIntOption.map(Instant.ofEpochSecond(_))
+  os.proc("git", "log", "--reverse", "--follow", "--format=%at", "--", path).call(check=false).out.lines.headOption.flatMap(_.toLongOption).map(Instant.ofEpochSecond)
 }
 
 def getCreationTime(path: os.Path): Instant = getGitAddTime(path).getOrElse(os.stat(path).mtime.toInstant())
