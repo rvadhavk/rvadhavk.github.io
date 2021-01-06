@@ -103,7 +103,7 @@ def main() = {
   interp.watch(sourceRoot) // if run with amm --watch build.sc, watch the folder in addition to the script
   os.list(buildRoot).foreach(os.remove.all)
   
-  val posts = os.list(sourceRoot).map(readPost)
+  val posts = os.list(sourceRoot).map(readPost).sortBy(_.creationTime).reverse
   os.write(buildRoot / "index.html", generateHomePage(posts))
   for (post <- posts) {
     val content = renderPost(post)
