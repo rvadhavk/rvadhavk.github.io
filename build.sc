@@ -43,6 +43,21 @@ val formatTimeTagsScript: Frag = script("""
 
 def timeTag(time: Instant) = tag("time")(attr("datetime") := time.toString)
 
+// Taken from http://bettermotherfuckingwebsite.com/
+val defaultStyle: Frag = tag("style")(attr("type") := "text/css")("""
+  body {
+    margin:40px auto;
+    max-width:650px;
+    line-height:1.6;
+    font-size:18px;
+    color:#444;
+    padding:0 10px
+  }
+  h1, h2, h3 {
+    line-height:1.2;
+  }
+""")
+
 def postSnippet(post: Post): Frag = {
   val mdRenderer = HtmlRenderer.builder.build
   tag("article")(
@@ -54,7 +69,10 @@ def postSnippet(post: Post): Frag = {
 }
 def generateHomePage(posts: IndexedSeq[Post]): String = {
   doctype("html")(html(
-    head(tag("title")("Mah Test Blog")),
+    head(
+      tag("title")("Mah Test Blog"),
+      defaultStyle
+    ),
     body(
       h1("Mah Test Blog"),
       tag("main")(posts.map(postSnippet)),
@@ -65,7 +83,10 @@ def generateHomePage(posts: IndexedSeq[Post]): String = {
 
 def renderPost(post: Post): String = {
   doctype("html")(html(
-    head(tag("title")(post.name)),
+    head(
+      tag("title")(post.name),
+      defaultStyle
+    ),
     body(
       h1(post.name),
       timeTag(post.creationTime),
