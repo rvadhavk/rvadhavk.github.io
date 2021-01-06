@@ -97,7 +97,7 @@ def renderPost(post: Post): String = {
 }
 
 @main
-def main() = {
+def main(push: Boolean = false) = {
   val sourceRoot = os.pwd / "posts"
   val buildRoot = os.pwd / "docs"
   interp.watch(sourceRoot) // if run with amm --watch build.sc, watch the folder in addition to the script
@@ -108,6 +108,11 @@ def main() = {
   for (post <- posts) {
     val content = renderPost(post)
     os.write(buildRoot / s"${post.name}.html", content)
+  }
+  if (push) {
+    os.proc("git", "add", "-A").call()
+    os.proc("git", "commit", "-m", "rebuilt docs/").call()
+    os.proc("git", "push").call()
   }
 }
 
