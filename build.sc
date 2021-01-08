@@ -4,6 +4,47 @@ import org.commonmark.parser.Parser
 import org.commonmark.renderer.html.HtmlRenderer
 import org.commonmark.node.{Node, Paragraph, AbstractVisitor}
 import java.time.Instant
+import mill._
+import upickle.default._
+
+val postNameToPath = interp.watchValue(os.list(millSourcePath / "posts").map(path => path.baseName -> path).toMap)
+val post = new Cross[PostModule](postNameToPath.keys.toSeq: _*)
+val posts = T.sequence(post.itemMap.values.map(_.render).toSeq)
+
+case class RenderedPost(name: String, creationTime: Instant, contents: String, preview: String)
+object RenderedPost {
+  implicit val rw: upickle.default.ReadWriter[RenderedPost] = macroRW
+}
+
+implicit val instantReadWriter: ReadWriter[Instant] = readwriter[Long].bimap[Instant](
+  instant => instant.toEpochMilli,
+  ms => Instant.ofEpochMilli(ms)
+)
+
+class PostModule(name: String) extends Module {
+  val srcPath = postNameToPath(name)
+  //val destPath = T.dest / srcPath.last
+  private def source = T.source(srcPath)
+  def render = T{
+    RenderedPost(name, Instant.now(), renderPost(readPost(source().path)), "")
+  }
+}
+
+def site = T{
+  for (postInfo <- posts()) {
+    os.write(T.dest / s"${postInfo.name}.html", postInfo.contents)
+  }
+  os.write(T.dest / "index.html", generateHomePage(posts()))
+  PathRef(T.dest)
+}
+
+def docs = T{
+  val source = site().path
+  val docs = os.pwd/"docs"
+  os.list(docs).foreach(os.remove.all)
+  os.list(source).foreach(os.copy.into(_, docs))
+  PathRef(docs)
+}
 
 def getFirstParagraph(root: Node): Option[Paragraph] = {
   var result: Option[Paragraph] = None;
@@ -26,7 +67,7 @@ def getCreationTime(path: os.Path): Instant = getGitAddTime(path).getOrElse(os.s
 case class Post(name: String, creationTime: Instant, content: Node)
 
 
-def readPost(path: os.Path) = {
+def readPost(path: os.Path): Post = {
   val mdParser = Parser.builder.build
   Post(
     name = path.baseName,
@@ -58,16 +99,16 @@ val defaultStyle: Frag = tag("style")(attr("type") := "text/css")("""
   }
 """)
 
-def postSnippet(post: Post): Frag = {
+def postSnippet(post: RenderedPost): Frag = {
   val mdRenderer = HtmlRenderer.builder.build
   tag("article")(
     h2(post.name),
     timeTag(post.creationTime),
-    getFirstParagraph(post.content).map(n => raw(mdRenderer.render(n))),
+    raw(post.preview),
     a(href := s"/${post.name}")("More")
   )
 }
-def generateHomePage(posts: IndexedSeq[Post]): String = {
+def generateHomePage(posts: Seq[RenderedPost]): String = {
   doctype("html")(html(
     head(
       tag("title")("Mah Test Blog"),
@@ -94,20 +135,5 @@ def renderPost(post: Post): String = {
       formatTimeTagsScript
     )
   )).render
-}
-
-@main
-def main() = {
-  val sourceRoot = os.pwd / "posts"
-  val buildRoot = os.pwd / "docs"
-  interp.watch(sourceRoot) // if run with amm --watch build.sc, watch the folder in addition to the script
-  os.list(buildRoot).foreach(os.remove.all)
-  
-  val posts = os.list(sourceRoot).map(readPost).sortBy(p => (p.creationTime, p.name)).reverse
-  os.write(buildRoot / "index.html", generateHomePage(posts))
-  for (post <- posts) {
-    val content = renderPost(post)
-    os.write(buildRoot / s"${post.name}.html", content)
-  }
 }
 
