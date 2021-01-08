@@ -76,11 +76,13 @@ def readPost(path: os.Path): Post = {
   )
 }
 
-val formatTimeTagsScript: Frag = script("""
-  for (let time of document.getElementsByTagName('time')) {
-   time.textContent = new Date(time.dateTime).toLocaleString([], {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'});
-  }
-""")
+val formatTimeTagsScript: Frag = script(raw("""
+  window.addEventListener('DOMContentLoaded', () => {
+    for (let time of document.getElementsByTagName('time')) {
+     time.textContent = new Date(time.dateTime).toLocaleString([], {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'});
+    }
+  });
+"""))
 
 def timeTag(time: Instant) = tag("time")(attr("datetime") := time.toString)
 
@@ -112,12 +114,12 @@ def generateHomePage(posts: Seq[RenderedPost]): String = {
   doctype("html")(html(
     head(
       tag("title")("Mah Test Blog"),
-      defaultStyle
+      defaultStyle,
+      formatTimeTagsScript
     ),
     body(
       h1("Mah Test Blog"),
-      tag("main")(posts.map(postSnippet)),
-      formatTimeTagsScript
+      tag("main")(posts.map(postSnippet))
     )
   )).render
 }
